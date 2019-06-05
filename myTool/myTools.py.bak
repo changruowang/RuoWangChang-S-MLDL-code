@@ -1,0 +1,141 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
+import sys
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import numpy as np
+
+colorMap = [('#A0FFA0','g'),('#FFA0A0','r'),('#A0A0FF','b'),('#00FFFF','#00CED1'),('#F0E68C','#FFD700'),('#EE82EE','#FF1493')]
+plt.rcParams['font.sans-serif'] = [u'SimHei']
+plt.rcParams['axes.unicode_minus'] = False
+
+
+def SelectColor(kind):
+    cm_light = []
+    cm_dark = []
+    for i in range(kind):
+        cm_light.append(colorMap[i][0])
+        cm_dark.append(colorMap[i][1])
+    return mpl.colors.ListedColormap(cm_light), mpl.colors.ListedColormap(cm_dark)
+
+'''
+画分类图 如：
+DrawClassyPic(x, y, sm.predict, x_label=u'花瓣长度', y_label=u'花瓣宽度', title=u'鸢尾花')
+'''
+def DrawClassyPic(x, y, classy_fun=None, x_label='x', y_label='y',title=u'标题'):
+    x1_min, x1_max = x[:, 0].min() - .1, x[:, 0].max() + .1
+    x2_min, x2_max = x[:, 1].min() - .1, x[:, 1].max() + .1
+
+    step = 0.02
+    x1, x2 = np.meshgrid(np.arange(x1_min, x1_max, step), np.arange(x2_min, x2_max, step))
+    x_show = np.stack((x1.flat, x2.flat), axis=1)  # 测试点
+    y_show_hat = classy_fun(x_show)  # 预测值
+    y_show_hat = y_show_hat.reshape(x1.shape)  # 使之与输入的形状相同
+    plt.figure(facecolor='w')
+
+    cm_light, cm_dark = SelectColor(len(np.unique(y.tolist())))
+    plt.pcolormesh(x1, x2, y_show_hat, cmap=cm_light)
+    # 再绘制一遍样本点，方便对比查看  ravel()转一维数据
+    plt.scatter(np.array(x[:, 0].ravel()), np.array(x[:, 1].ravel()),cmap=cm_dark, c=y.ravel(),edgecolors='k',marker = 'o')
+    plt.xlabel(x_label, fontsize=15)
+    plt.ylabel(y_label, fontsize=15)
+    plt.title(title, fontsize=17)
+    plt.xlim(x1_min, x1_max)
+    plt.ylim(x2_min, x2_max)
+    plt.grid(True)
+    plt.show()
+
+
+def strtransfer(inputstr):
+    typetmp = sys.getfilesystemencoding()
+    return inputstr.decode('utf-8').encode(typetmp)
+
+class ForceStr(str):
+    def __repr__(self):
+        return super(ForceStr, self).__str__()
+"""
+dicc = {'常若望':123}
+switched_data = switch_container(dicc)
+print switched_data
+"""
+def switch_container( data ):
+    ret = None
+    if isinstance(data, str):
+        ret = ForceStr(data)
+    elif isinstance(data, list) or isinstance(data, tuple):
+        ret = [switch_container(var) for var in data]
+    elif isinstance(data, dict):
+        ret = dict((switch_container(k), switch_container(v)) for k, v in data.iteritems())
+    else:
+        ret = data
+    return ret
+
+decisionNode = dict(boxstyle="sawtooth", fc="0.8")
+leafNode = dict(boxstyle="round4", fc="0.8")
+arrow_args = dict(arrowstyle="<-")
+
+def plotNode(nodeTxt, centerPt, parentPt, nodeType):
+    createPlot.ax1.annotate(str(nodeTxt).decode('utf-8'), xy=parentPt, xycoords='axes fraction', \
+                            xytext=centerPt, textcoords='axes fraction', \
+                            va="center", ha="center", bbox=nodeType, arrowprops=arrow_args)
+
+def getNumLeafs(myTree):
+    numLeafs = 0
+    firstStr = list(myTree.keys())[0]
+    secondDict = myTree[firstStr]
+    for key in secondDict.keys():
+        if type(secondDict[key]).__name__ == 'dict':
+            numLeafs += getNumLeafs(secondDict[key])
+        else:
+            numLeafs += 1
+    return numLeafs
+
+def getTreeDepth(myTree):
+    maxDepth = 0
+    firstStr = list(myTree.keys())[0]
+    secondDict = myTree[firstStr]
+    for key in secondDict.keys():
+        if type(secondDict[key]).__name__ == 'dict':
+            thisDepth = getTreeDepth(secondDict[key]) + 1
+        else:
+            thisDepth = 1
+        if thisDepth > maxDepth:
+            maxDepth = thisDepth
+    return maxDepth
+
+def plotMidText(cntrPt, parentPt, txtString):
+    xMid = (parentPt[0] - cntrPt[0]) / 2.0 + cntrPt[0]
+    yMid = (parentPt[1] - cntrPt[1]) / 2.0 + cntrPt[1]
+    createPlot.ax1.text(xMid, yMid, txtString)
+
+def plotTree(myTree, parentPt, nodeTxt):
+    numLeafs = getNumLeafs(myTree)
+    depth = getTreeDepth(myTree)
+    firstStr = list(myTree.keys())[0]
+    cntrPt = (plotTree.xOff + (1.0 + float(numLeafs)) / 2.0 / plotTree.totalw, plotTree.yOff)
+    plotMidText(cntrPt, parentPt, nodeTxt)
+    plotNode(firstStr, cntrPt, parentPt, decisionNode)
+    secondDict = myTree[firstStr]
+    plotTree.yOff = plotTree.yOff - 1.0 / plotTree.totalD
+    for key in secondDict.keys():
+        if type(secondDict[key]).__name__ == 'dict':
+            plotTree(secondDict[key], cntrPt, str(key))
+        else:
+            plotTree.xOff = plotTree.xOff + 1.0 / plotTree.totalw
+            plotNode(secondDict[key], (plotTree.xOff, plotTree.yOff), cntrPt, leafNode)
+            plotMidText((plotTree.xOff, plotTree.yOff), cntrPt, str(key))
+    plotTree.yOff = plotTree.yOff + 1.0 / plotTree.totalD
+
+def createPlot(inTree):
+    reload(sys)
+    sys.setdefaultencoding('utf-8')
+    fig = plt.figure(1, facecolor='white')
+    fig.clf()
+    axprops = dict(xticks=[], yticks=[])
+    createPlot.ax1 = plt.subplot(111, frameon=False, **axprops)
+    plotTree.totalw = float(getNumLeafs(inTree))
+    plotTree.totalD = float(getTreeDepth(inTree))
+    plotTree.xOff = -0.5 / plotTree.totalw
+    plotTree.yOff = 1.0
+    plotTree(inTree, (0.5, 1.0), '')
+    plt.show()
