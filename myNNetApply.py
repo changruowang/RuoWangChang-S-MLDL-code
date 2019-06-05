@@ -12,8 +12,8 @@ if __name__ == '__main__':
     X, Y = load_extra_DataSets("noisy_moons")
     # X,Y = loadRBF01()
 #模型参数配置 以及 训练
-    learning_rate = 0.1
-    nn_model = MyNeuralNet(layers = np.array([10, 1]), hid_active = 'tanh')
+    learning_rate = 1.2
+    nn_model = MyNeuralNet(layers = np.array([5, 1]), hid_active = 'tanh')
     nn_model.nn_fit(X, Y, n_iterations = 20000, learningRate = learning_rate, PrintCost=True, GradCheck=False)
     predictions = nn_model.predict(X)
     score = predictions.ravel() == Y.ravel()
